@@ -8,10 +8,15 @@ using namespace cv;
 using std::cout;
 
 int threshold_value = 0;
-int threshold_type = 0;
+int threshold_type = 1;
 int const max_value = 255;
 int const max_type = 4;
 int const max_binary_value = 255;
+
+double M1;
+double M2;
+double M3;
+Mat3b plot_image;
 
 Mat src, src_gray, dst;
 Mat hist;
@@ -45,20 +50,33 @@ int tsaiMoment(Mat histo){
         m2 += i * i * pgm_double.at<double>(i);
         m3 += i * i * i * pgm_double.at<double>(i);
     }
+    M1 = m1;
+    M2 = m2;
+    M3 = m3;
+    
     cd = m0 * m2 - m1 * m1;
     c0 = ( -m2 * m2 + m1 * m3 ) / cd;
     c1 = ( m0 * -m3 + m2 * m1 ) / cd;
     z0 = 0.5 * (-c1-sqrt(c1*c1 - 4.0*c0));
     z1 = 0.5 * (-c1+sqrt(c1*c1 - 4.0*c0));
     p0=(z1-m1)/(z1-z0);
+    cout << "m0  " << m0 << std::endl;
+    cout << "m1  " << m1 << std::endl;
+    cout << "m2  " << m2 << std::endl;
+    cout << "m3  " << m3 << std::endl;
+    cout << "z0  " << z0 << std::endl;
+    cout << "z1  " << z1 << std::endl;
+    cout << "p0  " << p0 << std::endl;
+    cout << "p1  " << 1 - p0 << std::endl;
+    
     sum=0;
     for (int i = 0; i < histo.rows; ++i) {
         sum+=pgm_double.at<double>(i);
         if (sum>p0) {
             threshold = i;
-            break; }
+                break; }
     }
-    cout<<"Moments"<< m2 <<"  ___  Threshold" << threshold <<std::endl;
+//    cout<<"Moments"<< m2 <<"  ___  Threshold" << threshold <<std::endl;
     
     return threshold;
 }
@@ -106,10 +124,22 @@ static void Threshold_Demo( int, void* )
      */
     //    threshold( src_gray, dst, threshold_value, max_binary_value, threshold_type );
     threshold( src_gray, dst, tsaiMoment(hist), max_binary_value, threshold_type );
+    for(int i = 0; i < dst.rows; i++){
+        for(int j=0; j < dst.cols; j++){
+            //apply condition here
+            if(dst.at<uchar>(i,j) == 0){
+                dst.at<uchar>(i,j) = 34;
+            }
+            if(dst.at<uchar>(i,j) == 255){
+                dst.at<uchar>(i,j) = 236;
+            }
+        }
+    }
     imshow( window_name, dst );
     //    show_histogram("image2 hist", dst);
     //    Moments m = moments(threshold_value,true);
     //    cout<<"Moments"<< m.m01 <<std::endl;
+    //26 27 27  // 130 118 90
 }
 
 
@@ -121,6 +151,19 @@ void tsaiMomentsForEveryThreshold( int threshold){
     const float* ranges[] = {lranges};
     Mat1b thresholdImage;
     cv::threshold( src_gray, thresholdImage, threshold, max_binary_value, threshold_type );
+    
+//    Mat image;
+    for(int i = 0; i < thresholdImage.rows; i++){
+        for(int j=0; j < thresholdImage.cols; j++){
+            //apply condition here
+            if(thresholdImage.at<uchar>(i,j) == 0){
+                thresholdImage.at<uchar>(i,j) = 34;
+            }
+            if(thresholdImage.at<uchar>(i,j) == 255){
+                thresholdImage.at<uchar>(i,j) = 236;
+            }
+        }
+    }
     Mat histo;
     calcHist(&thresholdImage, 1, channels, cv::Mat(), histo, 1, histSize, ranges, true, false);
     //    imshow( "Thresh", thresholdImage );
@@ -142,9 +185,9 @@ void tsaiMomentsForEveryThreshold( int threshold){
     }
     
     for (int i = 0; i < histo.rows; ++i) {
-        m1 += i * pgm_double.at<double>(i);
-        m2 += i * i * pgm_double.at<double>(i);
-        m3 += i * i * i * pgm_double.at<double>(i);
+        m1 += i * pgm_double.at<double>(i) ;
+        m2 += i * i * pgm_double.at<double>(i) ;
+        m3 += i * i * i * pgm_double.at<double>(i) ;
     }
     
     arrOfM1[threshold] = m1;
@@ -155,7 +198,7 @@ void tsaiMomentsForEveryThreshold( int threshold){
 void drawMPlot(){
     int const plot_height = 256;
     int const threshold_levels = 256;
-    Mat3b plot_image = cv::Mat3b::zeros(plot_height, threshold_levels * 3);
+    plot_image = cv::Mat3b::zeros(plot_height, threshold_levels);
     double max_val1 = 0;
     double max_val2 = 0;
     double max_val3 = 0;
@@ -175,18 +218,52 @@ void drawMPlot(){
         int const y1 = cvRound(plot_height*arrOfM1[x]/max_val1);
         int const y2 = cvRound(plot_height*arrOfM2[x]/max_val2);
         int const y3 = cvRound(plot_height*arrOfM3[x]/max_val3);
-        circle(plot_image, Point(x, y1 ), 1.0, Scalar(0, 255, 255), -1, 8); //yellow
-        circle(plot_image, Point(x + threshold_levels, y2 ), 1.0, Scalar(255, 0, 0), -1, 8);
-        circle(plot_image, Point(x + threshold_levels * 2, y3 + plot_height * 0.5 ), 1.0, Scalar(0, 0, 255), -1, 8);
+        circle(plot_image, Point(x, 256 - y1 ), 1.0, Scalar(0, 255, 255), -1, 8); //yellow
+        circle(plot_image, Point(x,256 - y2), 1.0, Scalar(255, 0, 0), -1, 8);
+        circle(plot_image, Point(x,256 - y3), 1.0, Scalar(0, 0, 255), -1, 8);
     }
-    imshow( "plot M1, M2, M3", plot_image );
+//    imshow( "plot M1, M2, M3", plot_image );
+}
+
+void drawSecondMPlot(){
+    int const plot_height = 256;
+    int const threshold_levels = 256;
+//    Mat3b plot_image = cv::Mat3b::zeros(plot_height, threshold_levels * 3);
+    double max_val1 = 0;
+    double max_val2 = 0;
+    double max_val3 = 0;
+    for (int i=0; i < threshold_levels; ++i){
+        if (arrOfM1[i] > max_val1){
+            max_val1 = arrOfM1[i];
+        }
+        if (arrOfM2[i] > max_val2){
+            max_val2 = arrOfM2[i];
+        }
+        if (arrOfM3[i] > max_val3){
+            max_val3 = arrOfM3[i];
+        }
+    }
+    // visualize each bin
+    for(int x = 0; x < threshold_levels; x++) {
+        int const y1 = cvRound(plot_height*M1/max_val1);
+        int const y2 = cvRound(plot_height*M2/max_val2);
+        int const y3 = cvRound(plot_height*M3/max_val3);
+        circle(plot_image, Point(x,256 - y1 + 130 ), 1, Scalar(0, 227, 255), -1, 8); //yellow
+        circle(plot_image, Point(x,256 - y2 + 118 ), 1, Scalar(227, 0, 0), -1, 8);
+        circle(plot_image, Point(x,256 - y3 + 90), 1.0, Scalar(0, 0, 227), -1, 8);
+    }
+    for (int y = 0; y< 256; ++y){
+        circle(plot_image, Point(tsaiMoment(hist), y ), 1.0, Scalar(255, 255, 255), -1, 8);
+    }
+    imshow( "second plot M1, M2, M3", plot_image );
+    
 }
 
 
 int main( int argc, char** argv )
 {
     //! [load]
-    String imageName("/Users/alisaunzakova/Desktop/completed/stuff1.jpg"); // by default
+    String imageName("/Users/alisaunzakova/Desktop/completed/stuff3.jpg"); // by default
     if (argc > 1)
     {
         imageName = argv[1];
@@ -225,11 +302,9 @@ int main( int argc, char** argv )
         tsaiMomentsForEveryThreshold(i);
     }
     drawMPlot();
-    cout << "Array moment1 =" << int(sizeof(arrOfM1)/sizeof(arrOfM1[0])) << std::endl;
-    for (int j = 0; j < int(sizeof(arrOfM3)/sizeof(arrOfM2[0])) ; ++j){
-        cout << "Array moment1 =" << arrOfM3[j] << std::endl;
-    }
-    waitKey();
+    drawSecondMPlot();
+     waitKey();
     return 0;
 }
+
 
